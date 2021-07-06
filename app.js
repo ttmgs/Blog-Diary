@@ -2,14 +2,11 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
+const mongoose = require("mongoose");
+
 
 // Load the full build.
 var _ = require('lodash');
-
-
-const homeStartingContent = "Lacus vel facilisis volutpat est velit egestas dui id ornare. Semper auctor neque vitae tempus quam. Sit amet cursus sit amet dictum sit amet justo. Viverra tellus in hac habitasse. Imperdiet proin fermentum leo vel orci porta. Donec ultrices tincidunt arcu non sodales neque sodales ut. Mattis molestie a iaculis at erat pellentesque adipiscing. Magnis dis parturient montes nascetur ridiculus mus mauris vitae ultricies. Adipiscing elit ut aliquam purus sit amet luctus venenatis lectus. Ultrices vitae auctor eu augue ut lectus arcu bibendum at. Odio euismod lacinia at quis risus sed vulputate odio ut. Cursus mattis molestie a iaculis at erat pellentesque adipiscing.";
-const aboutContent = "Hac habitasse platea dictumst vestibulum rhoncus est pellentesque. Dictumst vestibulum rhoncus est pellentesque elit ullamcorper. Non diam phasellus vestibulum lorem sed. Platea dictumst quisque sagittis purus sit. Egestas sed sed risus pretium quam vulputate dignissim suspendisse. Mauris in aliquam sem fringilla. Semper risus in hendrerit gravida rutrum quisque non tellus orci. Amet massa vitae tortor condimentum lacinia quis vel eros. Enim ut tellus elementum sagittis vitae. Mauris ultrices eros in cursus turpis massa tincidunt dui.";
-const contactContent = "Scelerisque eleifend donec pretium vulputate sapien. Rhoncus urna neque viverra justo nec ultrices. Arcu dui vivamus arcu felis bibendum. Consectetur adipiscing elit duis tristique. Risus viverra adipiscing at in tellus integer feugiat. Sapien nec sagittis aliquam malesuada bibendum arcu vitae. Consequat interdum varius sit amet mattis. Iaculis nunc sed augue lacus. Interdum posuere lorem ipsum dolor sit amet consectetur adipiscing elit. Pulvinar elementum integer enim neque. Ultrices gravida dictum fusce ut placerat orci nulla. Mauris in aliquam sem fringilla ut morbi tincidunt. Tortor posuere ac ut consequat semper viverra nam libero.";
 
 const app = express();
 
@@ -19,14 +16,34 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
 
+// mongodb connection
+mongoose.connect("mongodb://localhost:27017/blogDB", { useNewUrlParser: true }, { useUnifiedTopology: true } );
 
-app.get("/", (req, res, e) => {
-  res.render("home", {
-    posts: posts
-  });
+//  schema
+const blogSchema = mongoose.Schema({
+  title: String,
+  post: String
+})
+
+// model
+const Blog = mongoose.model("Blog", blogSchema)
+
+const defaultItems = ["first post"]
+
+
+
+
+app.get("/", (req, res,) => {
+
+Blog.find(function(err, posts) {
+  if (err) {
+    console.log("error finding posts")
+  } else {
+    res.render("home", {posts: posts})
+  }
+})
 });
 
-let posts = [];
 
 
 app.get("/about", (req, res) => {
@@ -38,22 +55,26 @@ app.get("/contact", (req, res) => {
 });
 
 app.get("/compose", (req, res) => {
-  res.render("compose", {
-    posts: posts
-  })
+  res.render("compose")
 });
 
 
 
 app.post("/compose", (req, res) => {
 
-  var post = {
-    title: req.body.titleInput,
-    content: req.body.textInput
-  };
+  // assinging title & content to a variable
+var composeTitle = req.body.titleInput
+var content = req.body.textInput
+  
 
+//  mongoose model that saves title and post
+  const newPost = new Blog({
+    title: composeTitle,
+    post: content
+  });
+newPost.save()
 
-  posts.push(post)
+// redirects back to the home route
   res.redirect("/")
 });
 
@@ -66,18 +87,25 @@ app.get("/posts/:posttitle", (req, res) => {
   // converts string to lowercase
   const titlename = _.lowerCase(req.params.posttitle)
   
-posts.forEach(function(post) {
+// calls database and finds one with matching title
+  Blog.findOne({title: titlename}, function(err, titles) {
+    if (titlename === titles) {
+      res.render("/posts/" + titlename, {content: titles.post})
+      } else {
+console.log("successfully saved to database")
+        const customPost = new Blog({
+          title: titlename,
+          post: ""
+        })
+        customPost.save()
+        res.render("post", {title: titles.title, content: titles.post})
+      }
+      
+      
+  })
 
-// converts string to lowercase
-const storedtitle = _.lowerCase(post.title)
 
-  if (storedtitle === titlename ) {
-    res.render('post', {
-      title: post.title,
-      content: post.content
-    })
-    }
-});
+
 });
 
 
